@@ -47,4 +47,15 @@ class Input
 
         return Sys::aPath($GLOBALS['-P-JSON'], $k);
     }
+
+    /**
+     * Tells if this is an AJAX request
+     *
+     * @return bool
+     */
+    static function isAjax()
+    {
+        return isset ($_SERVER['HTTP_X_REQUESTED_WITH']) &&
+               strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
+    }
 }
