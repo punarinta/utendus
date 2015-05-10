@@ -57,6 +57,9 @@ if (!file_exists($root . 'App/views'))
 {
     mkdir($root . 'App/views');
     copy('App/views/index.phtml', $root . 'App/views/index.phtml');
+    copy('App/views/error-401.phtml', $root . 'App/views/error-401.phtml');
+    copy('App/views/error-404.phtml', $root . 'App/views/error-404.phtml');
+    copy('App/views/error-500.phtml', $root . 'App/views/error-500.phtml');
 }
 
 
