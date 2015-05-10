@@ -12,7 +12,7 @@ class GenericApi
      */
     static public function index()
     {
-        // check if it's a POST
+        // check if it's HTTP POST
         if ($_SERVER['REQUEST_METHOD'] !== 'POST')
         {
             throw new \Exception('HTTP method must be POST.');
@@ -27,7 +27,7 @@ class GenericApi
         // check if this method exists
         if (!method_exists(get_called_class(), $method))
         {
-            throw new \Exception('Method \'' . $method . '\' does not exist.');
+            throw new \Exception("Method '$method' does not exist.");
         }
 
         // set up language
