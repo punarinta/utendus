@@ -16,11 +16,18 @@ class View
     /**
      * Renders JSON data.
      *
-     * @param array $data
+     * @param $data
+     * @param null $callback
      */
-    static function json($data)
+    static function json($data, $callback = null)
     {
-        // TODO: support JSONP
-        echo json_encode($data);
+        if (!$callback)
+        {
+            echo json_encode($data);
+        }
+        else
+        {
+            echo $callback . '(' . json_encode($data) . ');';
+        }
     }
 }
