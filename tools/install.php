@@ -23,8 +23,7 @@ if (!file_exists($root . 'tools'))
 {
     mkdir($root . 'tools');
 }
-copy('tools/compile.php', $root . 'tools/compile.php');
-copy('tools/index.php.tpl', $root . 'tools/index.php.tpl');
+copy('tools/compile.php.dist', $root . 'tools/compile.php');
 echo " OK\n";
 
 

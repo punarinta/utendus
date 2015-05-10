@@ -66,7 +66,7 @@ $codeConfig = substr($codeConfig, $pos + 7, -1);
 
 // Build index.php
 
-$code = file_get_contents(__DIR__ . '/index.php.tpl');
+$code = file_get_contents(__DIR__ . '/../vendor/punarinta/utendus/tools/index.php.dist');
 
 $code = str_replace("/* [INSERT-ROUTES] */", $codeRoutes, $code);
 $code = str_replace("/* [INSERT-CONFIG] */", $codeConfig, $code);
