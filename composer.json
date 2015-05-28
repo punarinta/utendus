@@ -1,0 +1,17 @@
+{
+    "name":         "punarinta/utendus",
+    "description":  "PHP framework experiment",
+    "keywords": [
+    ],
+    "authors": [
+        {
+            "name":      "Vladimir Osipov",
+            "email":     "vladimir.g.osipov@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.4"
+    },
+    "require-dev": {},
+}
