@@ -13,7 +13,7 @@ class DB
     static function connect()
     {
         $c = $GLOBALS['-CFG']['db'];
-        if (!$GLOBALS['-DB-L'] = mysqli_connect($c['host'], $c['user'], $c['pass'], $c['database'], $c['port']))
+        if (!$GLOBALS['-DB-L'] = @mysqli_connect($c['host'], $c['user'], $c['pass'], $c['database'], $c['port']))
         {
             throw new \Exception('Cannot connect to the database');
         }
