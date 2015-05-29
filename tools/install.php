@@ -24,6 +24,8 @@ if (!file_exists($root . 'tools'))
     mkdir($root . 'tools');
 }
 copy('tools/compile.php.dist', $root . 'tools/compile.php');
+copy('tools/utc', $root . 'tools/utc');
+copy('tools/utc.config.json', $root . 'tools/utc.config.json');
 echo " OK\n";
 
 
@@ -102,8 +104,8 @@ echo " OK\n";
 
 // 5. Compile app
 echo "Compiling application...";
-exec('php ' . $root . 'tools/compile.php');
+exec('php ' . $root . 'tools/compile.php -p db,auth,debug');
 
-echo " OK\n\nPerfect. Now you can run 'php tools/compile.php' next time you want to recompile it.\n";
+echo " OK\n\nPerfect. Now you can run 'php tools/compile.php -p pluginslist' next time you want to recompile it.\n";
 
 echo "\n\n";

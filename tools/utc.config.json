@@ -1,0 +1,23 @@
+{
+	"partials-root": "App/views/partials/",
+    "extensions":
+    {
+        "template": ".ut",
+        "partial":  ".utp",
+        "compiled": ".phtml"
+    },
+    "separators":
+    {
+        "partial-key": ":",
+        "partial-var": ","
+    },
+    "filters":
+    [
+        {
+            "regex"   : "/(\\{{2}[\\s]*\\>{2}.*?\\}{2})/",
+            "replace" : [["{{", "}}", ">>"], ["", "", ""]],
+            "trim"    : "; ",
+            "content" : "<?php echo \\Lang::translate('%CONTENT%'); ?>"
+        }
+    ]
+}

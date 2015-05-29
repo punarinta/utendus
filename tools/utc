@@ -1,0 +1,337 @@
+<?php
+
+class Compiler
+{
+    protected $level = 0;
+    protected $config = [];
+
+    /**
+     * @param array $config
+     */
+    public function __construct($config = [])
+    {
+        $this->config = $config;
+
+        if (isset ($config['level']))
+        {
+            $this->level = (int) $config['level'];
+        }
+    }
+
+    /**
+     * @param $filename
+     * @return bool
+     */
+    public function process($filename)
+    {
+        if (!file_exists($filename))
+        {
+            echo "\nFile $filename does not exist.";
+            return '';
+        }
+
+        // open the file
+        $data = file_get_contents($filename);
+
+        // check for partial skips
+        if (!isset ($this->config['partial']))
+        {
+            if (strpos($data, '@partial') !== false)
+            {
+                echo ' File is a partial, skipping.';
+                return 0;
+            }
+        }
+        else
+        {
+            $data = str_replace("@partial\n", '', $data);
+        }
+
+        $random2 = $this->randomString(20);
+        $random3 = $this->randomString(20);
+        $random4 = $this->randomString(20);
+
+        // PHP replacements
+
+        // mustache compatibility
+        $data = str_replace('*{{', $random2, $data);
+        $data = str_replace('*{{{', $random3, $data);
+        $data = str_replace('::', $random4, $data);
+
+        // custom filters
+        if (isset ($this->config['filters']))
+        {
+            foreach ($this->config['filters'] as $filter)
+            {
+                $data = preg_replace_callback($filter['regex'], function ($matches) use ($filter)
+                {
+                    $content = str_replace($filter['replace'][0], $filter['replace'][1], $matches[0]);
+                    if ($filter['trim'] !== false)
+                    {
+                        // trim equaling to 'null' triggers the default trimming
+                        $content = trim($content, $filter['trim']);
+                    }
+                    return str_replace('%CONTENT%', $content, $filter['content']);
+                }, $data);
+            }
+        }
+
+        // ECHO
+        $data = preg_replace_callback("/(\{{2}.*?\}{2})/", function ($matches)
+        {
+            $content = str_replace(['{{', '}}'], ['', ''], $matches[0]);
+            $content = trim($content, "; \t");
+            return '<?php echo (' . $content . '); ?>';
+        }, $data);
+
+        // IF
+        $data = preg_replace_callback("/(@if.*\n|\r)/", function ($matches)
+        {
+            $content = str_replace('@if', '', $matches[0]);
+            $content = trim($content);
+            return '<?php if ' . $content . ' { ?>' . "\n";
+        }, $data);
+
+        // ELSEIF
+        $data = preg_replace_callback("/(@elseif.*\n|\r)/", function ($matches)
+        {
+            $content = str_replace('@elseif', '', $matches[0]);
+            $content = trim($content);
+            return '<?php } elseif ' . $content . ' { ?>' . "\n";
+        }, $data);
+
+        // FOREACH
+        $data = preg_replace_callback("/(@foreach.*\n|\r)/", function ($matches)
+        {
+            $content = str_replace('@foreach', '', $matches[0]);
+            $content = trim($content);
+            return '<?php foreach ' . $content . ' { ?>' . "\n";
+        }, $data);
+
+
+        // simple replacements
+        $data = str_replace('@else', '<?php } else { ?>', $data);
+        $data = str_replace('@endif', '<?php } ?>', $data);
+        $data = str_replace('@endforeach', '<?php } ?>', $data);
+
+
+
+        // replace internal vars if they are present
+        if (isset ($this->config['args']))
+        {
+            foreach ($this->config['args'] as $arg)
+            {
+                $data = preg_replace_callback("/(\{[\s]*" . $arg[0] . "[\s]*\})/", function () use ($arg)
+                {
+                    return $arg[1];
+                }, $data);
+            }
+        }
+
+        // remove unused internal args
+        $data = preg_replace("/({[\w]+})/", '', $data);
+
+        // merge includes
+        $m2 = 0;
+
+        while (1)
+        {
+            $m1 = strpos($data, '@include ', $m2);
+            if (false === $m1)
+            {
+                break;
+            }
+
+            if ($this->level >= $this->config['max-depth'])
+            {
+                echo "\n\nError: Maximum include level ({$this->config['max-depth']}) reached. Emergency stop, just in case.\n\n";
+                exit;
+            }
+
+            $includeStarts = $m1;
+
+            // read argument
+            $m2 = strpos($data, "'", $m1 + 10);
+            $file = substr($data, $m1 + 10, $m2 - $m1 - 10);
+
+            // read arguments
+            $m2++;
+            $m1 = strpos($data, "\n", $m2);
+            $includeEnds = $m1;
+
+            $argsText = substr($data, $m2, $m1 - $m2);
+
+            preg_match("/\((.*)\)/", $argsText, $out);
+
+            if (count($out) < 2)
+            {
+                $args = [];
+            }
+            else
+            {
+                // support colon and comma in the argument body
+                $out[1] = str_replace(['\\' . $this->config['separators']['partial-var'], '\\' . $this->config['separators']['partial-key']], ['&#44;', '&#58;'], $out[1]);
+
+                $args = explode($this->config['separators']['partial-var'], $out[1]);
+                foreach ($args as $k => $v)
+                {
+                    $v = explode($this->config['separators']['partial-key'], $v);
+                    $args[$k] = [ trim($v[0]), str_replace(['&#44;', '&#58;'], [$this->config['separators']['partial-var'], $this->config['separators']['partial-key']], trim($v[1])) ];
+                }
+            }
+
+            $partial = new Compiler(array_merge($this->config,
+            [
+                'partial' => true,
+                'args'    => $args,
+                'level'   => $this->level + 1,
+            ]));
+
+            $ext = strpos($file, $this->config['extensions']['template']) ? '' : $this->config['extensions']['partial'];
+
+            if (isset ($this->config['partials-root']))
+            {
+                $html = $partial->process($this->config['app-root'] . '/' . $this->config['partials-root'] . $file . $ext);
+            }
+            else
+            {
+                $html = $partial->process(dirname($filename) . '/' . $file . $ext);
+            }
+
+            $replaceable = substr($data, $includeStarts, $includeEnds - $includeStarts);
+            $data = str_replace($replaceable, $html, $data);
+        }
+
+
+        // move back outcommented text
+        $data = str_replace($random2, '{{', $data);
+        $data = str_replace($random3, '{{{', $data);
+        $data = str_replace($random4, '::', $data);
+
+
+        if (isset ($this->config['partial']))
+        {
+            // return compiled partial content
+            return $data;
+        }
+        else
+        {
+            // save the result into a file and return length
+            return file_put_contents(str_replace($this->config['extensions']['template'], $this->config['extensions']['compiled'], $filename), $data);
+        }
+    }
+
+    /**
+     * @param int $length
+     * @return string
+     */
+    public function randomString($length = 10)
+    {
+        $string = '';
+        $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        for ($i = 0; $i < $length; $i++) $string .= $chars[rand(0, strlen($chars)-1)];
+        return $string;
+    }
+}
+
+class Scanner
+{
+    protected $dir;
+    protected $configFile;
+
+    /**
+     * @param $dir
+     * @param $configFile
+     */
+    public function __construct($dir, $configFile)
+    {
+        $this->dir = $dir;
+        $this->configFile = $configFile;
+    }
+
+    /**
+     * @return bool
+     */
+    public function run()
+    {
+        $path = realpath($this->dir);
+
+        if (!$path)
+        {
+            echo "Cannot open directory '{$this->dir}'.\n\n";
+            return false;
+        }
+
+        if (!file_exists($this->configFile))
+        {
+            echo "Cannot load configuration file '{$this->configFile}'\n\n";
+            return false;
+        }
+
+        // merge default settings with those from config file
+        $fileConfig = json_decode(file_get_contents($this->configFile), true);
+
+        if (!is_array($fileConfig))
+        {
+            echo "Configuration file contains invalid data.'\n";
+            return false;
+        }
+
+        $defaultConfig =
+        [
+            'app-root'   => dirname($this->configFile),
+            'extensions' =>
+            [
+                'template'  => '.ut',
+                'partial'   => '.utp',
+                'compiled'  => '.phtml',
+            ],
+            'max-depth'  => 15,
+        ];
+
+        $config = array_merge($defaultConfig, $fileConfig);
+
+        $compiler = new Compiler($config);
+
+        if (is_dir($path))
+        {
+            $objects = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($path), \RecursiveIteratorIterator::SELF_FIRST);
+
+            $ext = trim($config['extensions']['template'], '.');
+
+            foreach ($objects as $object)
+            {
+                if (pathinfo($object->getFilename(), PATHINFO_EXTENSION) == $ext)
+                {
+                    $filename = $object->getPathname();
+                    $trimmedFilename = str_replace($this->dir, '', $filename);
+                    echo "Compiling '$trimmedFilename'...";
+
+                    $compiler->process($filename);
+
+                    echo "\n";
+                }
+            }
+        }
+        else
+        {
+            echo "Compiling the file directly...\n";
+
+            $compiler->process($path);
+        }
+
+        return true;
+    }
+}
+
+/* Start */
+
+$dir = getcwd();
+
+if ($argc > 1)
+{
+    $dir .= '/' . $argv[1];
+}
+
+$scanner = new Scanner($dir, __FILE__ . '.config.json');
+$scanner->run();

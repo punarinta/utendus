@@ -129,3 +129,8 @@ $code = str_replace("<?php", "<?php\n\n// No use to edit this file.\n// Built " 
 file_put_contents($config['dir']['app'] . '/../public/index.php', $code);
 
 echo "\nFile 'index.php' written to 'public' directory.\n\n";
+
+
+// compile templates
+chdir($config['dir']['app'] . '/../');
+exec('php ' . $config['dir']['app'] . '/../tools/utc');
